@@ -6,13 +6,12 @@ import com.example.vote_service.exception.VoteException;
 import com.example.vote_service.exception.VoteExceptionCode;
 import com.example.vote_service.messagequeue.KafkaProducer;
 import com.example.vote_service.messagequeue.MessageProduceResult;
-import com.example.vote_service.repository.agenda.SelectOptionHistoryRepository;
 import com.example.vote_service.repository.agenda.AgendaCustomRepository;
+import com.example.vote_service.repository.agenda.SelectOptionHistoryRepository;
 import com.example.vote_service.repository.vote.VoteCustomRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
@@ -31,17 +30,25 @@ import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
 class VoteServiceImplTest {
-	@Mock
-	private AgendaCustomRepository agendaCustomRepository;
-	@Mock
-	private VoteCustomRepository voteRepository;
-	@Mock
-	private SelectOptionHistoryRepository selectOptionHistoryRepository;
+	private final AgendaCustomRepository agendaCustomRepository;
+	private final VoteCustomRepository voteRepository;
+	private final SelectOptionHistoryRepository selectOptionHistoryRepository;
+	private final KafkaProducer kafkaProducer;
+	private final VoteServiceImpl voteService;
 
-	@Mock
-	private KafkaProducer kafkaProducer;
-	@InjectMocks
-	private VoteServiceImpl voteService;
+	private static final Integer EVENT_DELAY = 5;
+
+	public VoteServiceImplTest(@Mock AgendaCustomRepository agendaCustomRepository,
+							   @Mock VoteCustomRepository voteRepository,
+							   @Mock SelectOptionHistoryRepository selectOptionHistoryRepository,
+							   @Mock KafkaProducer kafkaProducer) {
+		this.agendaCustomRepository = agendaCustomRepository;
+		this.voteRepository = voteRepository;
+		this.selectOptionHistoryRepository = selectOptionHistoryRepository;
+		this.kafkaProducer = kafkaProducer;
+		this.voteService = new VoteServiceImpl(agendaCustomRepository, voteRepository, selectOptionHistoryRepository, kafkaProducer, EVENT_DELAY);
+	}
+
 
 	@Test
 	@DisplayName("투표 생성 성공 - KafkaProducer 에서 성공하면 true 를 반환한다")
@@ -56,7 +63,7 @@ class VoteServiceImplTest {
 		VoteCreationDto voteCreationDto = new VoteCreationDto(selectOptionId);
 
 		given(agendaCustomRepository.findBySelectOptionId(selectOptionId))
-				.willReturn(Mono.just(new AgendaVo(1L,
+				.willReturn(Mono.just(new AgendaVo(agendaId,
 						"A12345678",
 						"제목",
 						"설명",
@@ -81,7 +88,7 @@ class VoteServiceImplTest {
 		StepVerifier.create(voteService.createVote(voteCreationDto).contextWrite(
 						context -> context.put("user",userInfo)
 				))
-				.expectNextMatches(messageProduceResult -> messageProduceResult.getStatus())
+				.expectNextMatches(MessageProduceResult::getStatus)
 				.verifyComplete();
 	}
 
@@ -96,7 +103,7 @@ class VoteServiceImplTest {
 		String apartmentCode = "A12345678";
 
 		given(agendaCustomRepository.findBySelectOptionId(selectOptionId))
-				.willReturn(Mono.just(new AgendaVo(1L,
+				.willReturn(Mono.just(new AgendaVo(agendaId,
 						"A12345678",
 						"제목",
 						"설명",
@@ -170,7 +177,7 @@ class VoteServiceImplTest {
 		String apartmentCode = "A12345678";
 
 		given(agendaCustomRepository.findBySelectOptionId(selectOptionId))
-				.willReturn(Mono.just(new AgendaVo(1L,
+				.willReturn(Mono.just(new AgendaVo(agendaId,
 						"A87654321",
 						"제목",
 						"설명",
@@ -210,7 +217,7 @@ class VoteServiceImplTest {
 		String apartmentCode = "A12345678";
 
 		given(agendaCustomRepository.findBySelectOptionId(selectOptionId))
-				.willReturn(Mono.just(new AgendaVo(1L,
+				.willReturn(Mono.just(new AgendaVo(agendaId,
 						apartmentCode,
 						"제목",
 						"설명",
@@ -415,7 +422,7 @@ class VoteServiceImplTest {
 						context -> context.put("user", userInfo
 						)))
 				.expectSubscription()
-				.then(() -> VirtualTimeScheduler.get().advanceTimeBy(Duration.ofSeconds(2*5)))
+				.then(() -> VirtualTimeScheduler.get().advanceTimeBy(Duration.ofSeconds((long)EVENT_DELAY*5)))
 				.expectNext(voteCount)
 				.expectNextCount(4)
 				.thenCancel()
@@ -568,7 +575,7 @@ class VoteServiceImplTest {
 						context -> context.put("user", userInfo
 						)))
 				.expectSubscription()
-				.then(() -> VirtualTimeScheduler.get().advanceTimeBy(Duration.ofSeconds(2*5)))
+				.then(() -> VirtualTimeScheduler.get().advanceTimeBy(Duration.ofSeconds((long)EVENT_DELAY*5)))
 				.expectNextMatches(list -> list.containsAll(List.of(1L,3L,5L)) && list.size() == 3)
 				.expectNextCount(4)
 				.thenCancel()

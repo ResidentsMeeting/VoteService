@@ -30,17 +30,18 @@ public class VoteServiceImpl implements VoteService {
 	private final VoteCustomRepository voteRepository;
 	private final SelectOptionHistoryRepository selectOptionHistoryRepository;
 	private final KafkaProducer kafkaProducer;
-
-	@Value("${event.delay}")
-	private Integer eventDelay;
+	private final Integer eventDelay;
 
 	public VoteServiceImpl(AgendaCustomRepository agendaCustomRepository,
 						   VoteCustomRepository voteRepository,
-						   SelectOptionHistoryRepository selectOptionHistoryRepository, KafkaProducer kafkaProducer) {
+						   SelectOptionHistoryRepository selectOptionHistoryRepository,
+						   KafkaProducer kafkaProducer,
+						   @Value("${event.delay}") Integer eventDelay) {
 		this.agendaCustomRepository = agendaCustomRepository;
 		this.voteRepository = voteRepository;
 		this.selectOptionHistoryRepository = selectOptionHistoryRepository;
 		this.kafkaProducer = kafkaProducer;
+		this.eventDelay = eventDelay;
 	}
 
 	@Override
