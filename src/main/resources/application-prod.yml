@@ -2,27 +2,19 @@ server:
   port: 8081
 
 spring:
-  application:
-    name: vote-service
+  config:
+    import: aws-secretsmanager:resident_meeting
+
   r2dbc:
-    url: r2dbc:mysql://mysql-service:3306/resident?useUnicode=true&characterEncoding=utf8&useSSL=false
-    username: root
-    password: zerobase
+    url: r2dbc:mysql://${db_host}:3306/resident?useUnicode=true&characterEncoding=utf8&useSSL=false
+    username: ${db_username}
+    password: ${db_password}
     pool:
       max-size: 100
       validation-query: SELECT 1
 
   kafka:
     bootstrap-servers: http://kafka-service:9092
-
-eureka:
-  instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://eureka-service:8761/eureka
 
 management:
   endpoints:
